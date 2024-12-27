@@ -1,0 +1,23 @@
+<configuration>
+  <!-- 콘솔에 로그를 찍기위해 이름을 정의 -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <!-- 로그를 출력할 때의 형식을 지정-->
+      <pattern>%d{yyyyMMdd HH:mm:ss.SSS} [%thread] %-3level %logger{5} - %msg %n</pattern>
+    </encoder>
+  </appender>
+  
+  <logger name="jdbc" level="OFF"/>
+  
+  <logger name="jdbc.sqlonly" level="OFF"/>
+  <logger name="jdbc.sqltiming" level="DEBUG"/>
+  <logger name="jdbc.audit" level="OFF"/>
+  <logger name="jdbc.resultset" level="OFF"/>
+  <logger name="jdbc.resultsettable" level="DEBUG"/>
+  <logger name="jdbc.connection" level="OFF"/>
+  
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+  
+</configuration>

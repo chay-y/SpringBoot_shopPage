@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.green.shop.order.mapper.OrderMapper"> <!--인터페이스 연결-->
+
+    <!-- 주문 추가 -->
+    <insert id="insertOrder" parameterType="orderDto" useGeneratedKeys="true" keyProperty="orderId" keyColumn="order_id">
+        INSERT INTO orders(member_id, order_status)
+        VALUES (#{memberId}, #{orderStatus})
+    </insert>
+
+
+    <insert id="insertOrderItem" parameterType="orderItemDto" useGeneratedKeys="true" keyProperty="orderItemId" keyColumn="order_item_id">
+        INSERT INTO order_item(order_id, item_id, order_price, count)
+        VALUES (#{orderId}, #{itemId}, #{orderPrice}, #{count})
+    </insert>
+
+
+    <!-- 재고 변경 -->
+    <update id="changeStock" parameterType="map">
+        UPDATE item
+        SET stock_number = #{stockNumber}
+        WHERE item_id=#{itemId}
+    </update>
+
+
+    <!-- 주문확인 -->
+    <select id="orderSelect" parameterType="map" resultType="orderHistDto">
+        SELECT o.order_id, o.member_id, o.order_date, o.order_status,
+                oi.item_id, oi.order_price, oi.count, i.item_name, ii.img_url
+        FROM orders o JOIN order_item oi   ON o.order_id = oi.order_id
+                        JOIN item i         ON oi.item_id = i.item_id
+                        JOIN item_img ii    ON i.item_id = ii.item_id
+        WHERE	o.member_id = #{memberId} AND ii.rep_img_yn = 'Y'
+        ORDER BY o.order_date DESC
+        LIMIT #{pageSize} OFFSET #{page}
+
+    </select>
+
+
+    <!--주문건수 계산(페이징)  -->
+    <select id="orderCount" parameterType="map" resultType="int">
+        SELECT count(*)
+        FROM orders o JOIN order_item oi   ON o.order_id = oi.order_id
+                        JOIN item i         ON oi.item_id = i.item_id
+                        JOIN item_img ii    ON i.item_id = ii.item_id
+        WHERE	o.member_id = #{memberId} AND ii.rep_img_yn = 'Y'
+    </select>
+
+
+    <!--주문 상태를 취소로 변경-->
+    <update id="cancelOrder" >
+        UPDATE orders
+        SET order_status='CANCEL'
+        WHERE order_id = #{orderId}
+    </update>
+
+    <!--    3. 주문한 사람만 취소할 수 있어야 함(주문자 확인)-->
+    <select id="orderMemberId" resultType="Long">
+        SELECT member_id
+        FROM orders
+        WHERE order_id=#{orderId}
+    </select>
+
+    <!--    4. 주문번호를 이용하여 주문을 찾아야 함-->
+    <select id="findOrder" resultType="orderHistDto">
+        SELECT o.order_id, o.member_id, o.order_date, o.order_status,
+                oi.item_id, oi.count
+        FROM orders o JOIN order_item oi ON o.order_id=oi.order_id
+        WHERE o.order_id=#{orderId}
+
+    </select>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+

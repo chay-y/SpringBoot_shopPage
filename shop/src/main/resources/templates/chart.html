@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+
+
+<div layout:fragment="content">
+
+    <h2> 주문 수량 그래프</h2>
+    <table border="1">
+        <thead>
+        <tr>
+            <th>날짜</th>
+            <th>수량</th>
+        </tr>
+        </thead>
+        <tbody>
+            <tr th:each="orderCount: ${orderCounts}">
+                <td th:text="${#dates.format(orderCount.orderDate, 'yyyy-MM-dd')}"></td>
+                <td th:text="${orderCount.count}"></td>
+            </tr>
+        </tbody>
+
+    </table>
+    <canvas id="myChart" width="400" height="200"></canvas>
+
+    <script th:inline="javascript">
+        async function showChart() {
+            //스프링 시큐리티의 POST 방식의 데이터 전송에는
+            //CSRF 토큰값이 반드시 필요함
+            let token = $("meta[name='_csrf']").attr("content");
+            let header = $("meta[name='_csrf_header']").attr("content");
+
+            //요청을 보낼 url 설정
+            let url="/chart/data";
+
+            try{
+                //fetch: 주어진 URL로 HTTP요청을 전송
+                //요청 헤더에는 Content-Type과 CSRF 토큰을 포함하여 전송
+
+                //await : 비동기 작업이 완료될때까지 대기
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        [header]: token
+                    },
+                    cache: 'no-cache'   //캐시를 사용하지 않음
+                })
+
+                //응답코드가 401인 경우에는
+                //로그인 안내 메시지를 표시하고, 로그인 페이지로 이동한 후 함수 종료
+                if(response.status == 401){
+                    alert('로그인 후 이용해주세요');
+                    location.href = '/members/login';
+                    return;
+                }
+
+                //응답이 성공적이지 않은 경우
+                //응답 본문을 텍스트로 읽어와서 변수에 저장한 후
+                //해당 에러 메세지를 포함한 새로운 에러를 발생
+                if(!response.ok){
+                    const errorText = await response.json();
+                    alert(errorText.message);
+                }
+
+                //응답이 성공적이면 본문을 json으로 변환하여 저장
+                const responseData = await response.json();
+
+                if(!responseData || responseData.length == 0){
+                    throw new Error("자료를 받아오지 못했습니다.")
+                }
+
+                const orderCounts = responseData;
+
+                const labels = orderCounts.map(item => fDate(new Date(item.orderDate)));
+                const chartData = orderCounts.map(item => item.count);
+
+                const ctx = document.getElementById('myChart').getContext('2d');
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '주문 수량',
+                            data: chartData,
+                            backgroundColor: 'rgb(120,144,22)',
+                            borderColor: 'rgb(80,69,179)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        scales:{
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                })
+
+            } catch(error){
+                //에러메세지를 알림창으로 표시
+                alert(error.message);
+            }
+        }
+
+        function fDate(date){
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            return year + "-" + month + "-"+ day;
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function(){
+            showChart();
+        })
+
+    </script>
+
+</div>
+
+
+</html>

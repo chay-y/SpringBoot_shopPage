@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+
+<head>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<!-- 사용자 스크립트 추가 -->
+<th:block layout:fragment="script">
+    <script th:inline="javascript">
+
+        function page(page){
+            location.href="/orders/" + page
+        }
+
+        async function cancelOrder(orderId) {
+            //주문 취소 요청을 보낼 url 설정
+            let url = "/orders/" + orderId + "/cancel";
+
+            //주문 취소 후 기존 페이지로 이동하도록 페이지 설정
+            //타임리프에서 자바스크립트 내부에 서버 데이터를 주입할 때 사용
+            let page = /*[[${page}]]*/ "";
+
+            //서버로 보낼 데이터 객체를 생성
+            let paramData = {
+                orderId: orderId
+            };
+
+            try{
+                //비동기 작업 처리
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        //요청 본문이 JSON 형식임을 명시
+                        'Content-Type': 'application/json'
+                    },
+                    //요청 본문을 데이터로 전달. paramData 객체를 JSON으로 변환
+                    body: JSON.stringify(paramData),
+                    cache: 'no-cache'
+                })
+
+                //요청이 성공적으로 처리되었다면
+                if(response.ok){
+                    //서버에서 반환된 JSON 데이터를 자바스크립트 객체로 변환
+                    let result = await response.json();
+
+                    alert("주문이 취소되었습니다.");
+                    location.href="/orders/" + page;
+
+                }else if (response.status == 401){
+                    alert("로그인 후 이용해주세요.");
+                    location.href="/members/login"
+                }else{
+                    //서버에서 반환된 텍스트(오류메시지)를 읽어서 알림창에 표시
+                    let errorText = await response.text();
+                    alert(errorText);
+                }
+
+            }catch(error){
+                alert(error.message);
+            }
+
+        }
+
+
+
+    </script>
+</th:block>
+
+
+<!-- 사용자 CSS 추가 -->
+<th:block layout:fragment="css">
+    <style>
+        .content-mg{
+            margin-left:30%;
+            margin-right:30%;
+            margin-top:2%;
+            margin-bottom:100px;
+        }
+        .repImgDiv{
+            margin-right:15px;
+            margin-left:15px;
+            height:auto;
+        }
+        .repImg{
+            height:100px;
+            width:100px;
+        }
+        .card{
+            width:750px;
+            height:100%;
+            padding:30px;
+            margin-bottom:20px;
+        }
+        .fs18{
+            font-size:18px
+        }
+        .fs24{
+            font-size:24px
+        }
+    </style>
+</th:block>
+
+<div layout:fragment="content" class="content-mg">
+
+    <h2 class="mb-4">
+        구매 이력
+    </h2>
+
+    <div th:each="order : ${orderHist}">
+
+        <div class="d-flex mb-3 align-self-center">
+            <h4 th:text="${order.orderDate} + ' 주문'"></h4>
+            <div class="ml-3">
+                <th:block th:if="${order.orderStatus == T(com.green.shop.order.constant.OrderStatus).ORDER}">
+                    <button type="button" class="btn btn-outline-secondary" th:value="${order.orderId}" onclick="cancelOrder(this.value)">주문취소</button>
+                </th:block>
+                <th:block th:unless="${order.orderStatus == T(com.green.shop.order.constant.OrderStatus).ORDER}">
+                    <h4>(취소 완료)</h4>
+                </th:block>
+            </div>
+        </div>
+        <!-- each의 현재 객체 (orderStat) -->
+        <div th:each="orderItem : ${orderStat.current}" class="card d-flex">
+            <div class="d-flex mb-3">
+                <div class="repImgDiv">
+                    <img th:src="${orderItem.imgUrl}" class = "rounded repImg" th:alt="${orderItem.itemName}">
+                </div>
+                <div class="align-self-center w-75">
+                    <span th:text="${orderItem.itemName}" class="fs24 font-weight-bold"></span>
+                    <div class="fs18 font-weight-light">
+                        <span th:text="${orderItem.orderPrice} +'원'"></span>
+                        <span th:text="${orderItem.count} +'개'"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div th:with="start=${pageHandler.beginPage}, end=${pageHandler.endPage}">
+        <ul class="pagination justify-content-center">
+
+            <li th:if="${not pageHandler.firstPage}" class="page-item" th:classappend="${pageHandler.firstPage} ? 'disabled' : ''">
+                <a th:onclick="'javascript:page(' + ${pageHandler.page-1} + ')'" aria-label='Previous' class="page-link">
+                    <span aria-hidden='true'>Previous</span>
+                </a>
+            </li>
+
+            <li th:each="page: ${#numbers.sequence(start, end)}" th:classappend="${pageHandler.page eq page} ? 'active' : ''" class="page-item">
+                <a th:onclick="'javascript:page(' + ${page} + ')' " th:inline="text" class="page-link">[[${page}]]</a>
+            </li>
+
+            <li th:if="${not pageHandler.lastPage}" th:classappend="${pageHandler.lastPage} ? 'disabled' : ''" class="page-item">
+                <a th:onclick="'javascript:page(' + ${pageHandler.page+1} + ')'" aria-label='Next' class="page-link">
+                    <span aria-hidden='true'>Next</span>
+                </a>
+            </li>
+
+        </ul>
+    </div>
+
+</div>
+
+</html>

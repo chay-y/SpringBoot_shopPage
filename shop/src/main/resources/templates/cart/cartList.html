@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+
+<head>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+
+<!-- 사용자 스크립트 추가 -->
+<th:block layout:fragment="script">
+
+<script th:inline="javascript">
+
+    $(document).ready(function() {
+         //상품 앞에 있는 체크박스를 체크하면 총 주문금액 재계산
+         $("input[name=cartChkBox]").change(function() {
+             getOrderTotalPrice();
+         })
+
+         $("#checkall").change(function() {
+             checkAll();
+         })
+
+
+     });
+
+     //총 주문금액 계산
+     function getOrderTotalPrice() {
+         let orderTotalPrice = 0;
+
+         // 각 상품앞에 있는 체크박스를 체크하면
+         $("input[name=cartChkBox]:checked").each(function() {
+             let cartItemId = $(this).val();
+             let price = $("#price_" + cartItemId).attr("data-price");
+             let count = $("#count_" + cartItemId).val();
+
+             orderTotalPrice += price * count;
+         })
+
+         $("#orderTotalPrice").html(orderTotalPrice+'원');
+     }
+
+     //제품 수량이 변경되면 각 제품의 금액을 재계산
+    function changeCount(obj) {
+         let count = obj.value;
+         let cartItemId = obj.id.split('_')[1];
+         let price = $("#price_" + cartItemId).data("price");
+         let totalPrice = count*price;
+
+         $("#totalPrice_" + cartItemId).html(totalPrice + "원");
+
+        getOrderTotalPrice();
+         updateCartItemCount(cartItemId, count);
+    }
+
+     //전체 선택 체크, 해제
+    function checkAll(){
+         if ($('#checkall').prop("checked")) {
+             $("input[name=cartChkBox]").prop("checked", true);
+         } else {
+             $("input[name=cartChkBox]").prop("checked", false);
+         }
+
+         getOrderTotalPrice();
+    }
+
+
+
+    async function updateCartItemCount(cartItemId, count) {
+        try{
+            let token = $("meta[name='_csrf']").attr("content");
+            let header = $("meta[name='_csrf_header']").attr("content");
+
+
+            //수량 변경 요청을 보낼 url 설정
+            let url = "/cartItem/" + cartItemId + "?count=" + count;
+
+
+            //비동기 작업 처리
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    //요청 본문이 JSON 형식임을 명시
+                    'Content-Type': 'application/json',
+                    [header]: token
+                },
+                cache: 'no-cache'
+            })
+
+            //요청이 성공적으로 처리되었다면
+            if(response.ok){
+                //서버에서 반환된 JSON 데이터를 자바스크립트 객체로 변환
+                let result = await response.json();
+
+
+            }else if (response.status == 401){
+                alert("로그인 후 이용해주세요.");
+                location.href="/members/login"
+            }else{
+                //서버에서 반환된 텍스트(오류메시지)를 읽어서 알림창에 표시
+                let errorText = await response.text();
+                alert(errorText);
+            }
+
+        }catch(error){
+            alert(error.message);
+        }
+
+    }
+
+    async function deleteCartItem(obj) {
+
+        try{
+            let cartItemId = obj.dataset.id;
+            let token = $("meta[name='_csrf']").attr("content");
+            let header = $("meta[name='_csrf_header']").attr("content");
+
+
+            //삭제 변경 요청을 보낼 url 설정
+            let url = "/cartItem/" + cartItemId;
+
+
+            //비동기 작업 처리
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    //요청 본문이 JSON 형식임을 명시
+                    'Content-Type': 'application/json',
+                    [header]: token
+                },
+                cache: 'no-cache'
+            })
+
+            //요청이 성공적으로 처리되었다면 장바구니로 이동
+            if(response.ok){
+                location.href="/cart";
+
+            }else if (response.status == 401){
+                alert("로그인 후 이용해주세요.");
+                location.href="/members/login"
+            }else{
+                //서버에서 반환된 텍스트(오류메시지)를 읽어서 알림창에 표시
+                let errorText = await response.text();
+                alert(errorText);
+            }
+
+        }catch(error){
+            alert(error.message);
+        }
+    }
+
+
+
+
+
+
+    async function orders() {
+        //스프링 시큐리티의 POST 방식의 데이터 전송에는
+        //CSRF 토큰값이 반드시 필요함
+        let token = $("meta[name='_csrf']").attr("content");
+        let header = $("meta[name='_csrf_header']").attr("content");
+
+        //요청을 보낼 url 설정
+        let url="/cart/orders";
+
+
+        //배열선언
+        let dataList=[];
+
+        //객체
+        let paramData={};
+
+        //체크가 된 장바구니의 상품 아이디를 전달하기위해
+        //장바구니 상품 아이디를 객체로 만들어서
+        //dataList 배열에 저장
+        $("input[name=cartChkBox]:checked").each(function() {
+            let cartItemId = $(this).val();
+            let data = {"cartItemId" : cartItemId};
+            dataList.push(data);
+        })
+
+
+        //paramData에 cartOrderDtoList라는 키로 설정하고 값을 저장
+        paramData['cartOrderDtoList'] = dataList;
+
+
+        //서버로 전달해야하는 데이터를 JSON의 형태로 변환
+        let param = JSON.stringify(paramData);
+
+        try{
+            //fetch: 주어진 URL로 HTTP요청을 전송
+            //요청 헤더에는 Content-Type과 CSRF 토큰을 포함하여 전송
+
+            //await : 비동기 작업이 완료될때까지 대기
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    [header]: token
+
+                },
+                body: param,    //요청 본문에는 param JSON문자열이 포함
+                cache: 'no-cache'   //캐시를 사용하지 않음
+            })
+
+            //응답코드가 401인 경우에는
+            //로그인 안내 메시지를 표시하고, 로그인 페이지로 이동한 후 함수 종료
+            if(response.status == 401){
+                alert('로그인 후 이용해주세요');
+                location.href = '/members/login';
+                return;
+            }
+
+            //응답이 성공적이지 않은 경우
+            //응답 본문을 텍스트로 읽어와서 변수에 저장한 후
+            //해당 에러 메세지를 포함한 새로운 에러를 발생
+            if(!response.ok){
+                const errorText = await response.json();
+                alert(errorText.message);
+            } else{
+                alert("주문이 완료되었습니다.");
+                location.href="/";
+            }
+
+        } catch(error){
+            console.error("ERROR :" , error);
+
+            //에러메세지를 알림창으로 표시
+            alert("오류가 발생하였습니다. 다시 시도하세요");
+        }
+    }
+
+
+
+
+</script>
+</th:block>
+<!-- 사용자 CSS 추가 -->
+<th:block layout:fragment="css">
+    <style>
+        .content-mg{
+            margin-left:25%;
+            margin-right:25%;
+            margin-top:2%;
+            margin-bottom:100px;
+        }
+        .repImgDiv{
+            margin-right:15px;
+            margin-left:15px;
+            height:auto;
+        }
+        .repImg{
+            height:100px;
+            width:100px;
+        }
+        .fs18{
+            font-size:18px
+        }
+        .fs24{
+            font-size:24px
+        }
+    </style>
+</th:block>
+
+<div layout:fragment="content" class="content-mg">
+
+    <h2 class="mb-4">
+        장바구니 목록
+    </h2>
+
+    <div>
+
+        <table class="table">
+            <colgroup>
+                <col width="15%"/>
+                <col width="70%"/>
+                <col width="15%"/>
+            </colgroup>
+            <thead>
+            <tr class="text-center">
+                <td>
+                    <input type="checkbox" id="checkall" onclick="checkAll()"> 전체선택
+                </td>
+                <td>상품정보</td>
+                <td>상품금액</td>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="cartItem : ${cartItems}">
+                <td class="text-center align-middle">
+                    <input type="checkbox" name="cartChkBox" th:value="${cartItem.cartItemId}">
+                </td>
+                <td class="d-flex">
+                    <div class="repImgDiv align-self-center">
+                        <img th:src="${cartItem.imgUrl}" class="rounded repImg" th:alt="${cartItem.itemName}">
+                    </div>
+                    <div class="align-self-center">
+                        <span th:text="${cartItem.itemName}" class="fs24 font-weight-bold"></span>
+                        <div class="fs18 font-weight-light">
+                            <span class="input-group mt-2">
+                                <span th:id="'price_' + ${cartItem.cartItemId}"
+                                      th:data-price="${cartItem.price}"
+                                      th:text="${cartItem.price} + '원'" class="align-self-center mr-2">
+                                </span>
+                                <input type="number" name="count" th:id="'count_' + ${cartItem.cartItemId}"
+                                       th:value="${cartItem.count}" min="1"
+                                       onchange="changeCount(this)" class="form-control mr-2">
+                                <button type="button" class="close" aria-label="Close">
+                                    <span aria-hidden="true" th:data-id="${cartItem.cartItemId}" onclick="deleteCartItem(this)">&times;</span>
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-center align-middle">
+                    <span th:id="'totalPrice_' + ${cartItem.cartItemId}"
+                          name="totalPrice" th:text="${cartItem.price * cartItem.count} + '원'">
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h2 class="text-center">
+            총 주문 금액 : <span id="orderTotalPrice" class="text-danger">0원</span>
+        </h2>
+
+        <div class="text-center mt-3">
+            <button type="button" class="btn btn-primary btn-lg" onclick="orders()">주문하기</button>
+        </div>
+
+    </div>
+
+</div>
+
+</html>

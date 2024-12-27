@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.green.shop.member.mapper.MemberMapper"> <!--인터페이스 연결-->
+
+    <!-- 회원 가입(insertMember) -->
+    <insert id="insertMember" parameterType="memberDto" useGeneratedKeys="true" keyProperty="memberId" keyColumn="memberId">
+        INSERT INTO member(id, password, name, email, address, role)
+        VALUES(#{id}, #{password}, #{name}, #{email}, #{address}, #{role})
+    </insert>
+
+
+    <!--id중복검사(overlapId)-->
+    <select id="overlapId" resultType="memberDto" parameterType="String">
+        SELECT member_id, id, email
+        FROM member
+        WHERE id = #{id}
+    </select>
+
+
+
+    <!-- 이메일 중복검사(overlapEmail)-->
+
+    <select id="overlapEmail" resultType="memberDto" parameterType="String">
+        SELECT member_id, id, email
+        FROM member
+        WHERE email = #{email}
+    </select>
+
+    <!-- 로그인 처리 -->
+    <select id="loginMember" resultType="memberDto" parameterType="String">
+        SELECT member_id, id, password, name, email, role
+        FROM member
+        WHERE id=#{id}
+    </select>
+
+    <select id="findMemberId" resultType="Long">
+        SELECT member_id
+        FROM member
+        WHERE id = #{id}
+    </select>
+
+
+
+</mapper>
